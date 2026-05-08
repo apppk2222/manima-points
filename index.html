@@ -463,7 +463,7 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 // ══════════════════════════════
 // URL ของ Google Apps Script Web App ที่ Deploy แล้ว
 // เปลี่ยนเป็น URL จริงของคุณ
-const API_URL = 'https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnQoaa9JO5XQjQmJ5gCGpeAEsW40wDUIiEYrS-Pp3-FRVqrpnT-jXrpxCsrInqEW0K8hqEiQmx-Behcj1s4PGxad4r1JSHDjPZ6FKeUgOi3oTBvzZQFc6ryIry-EVh0Y3HiUpT_1Mcv9PPACztnhBacFmccUWyhlFsAvWe_OdEs2gm77HI9HfLwLEEoJc1yKmxOKKtdZJ9Jth9be0Ro9sxP84MSG-xp-_NAaPwWUhw7xWUx7nr2tG9J54I_aQGQ8FmPEJlKdd7t8QSIO3kGmsZSc2cyBsw&lib=MhF3kMKUQIGhfPmTK2V4h7GhI1UgTnNFw';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwGxDChfjSRpp90I1mAAC4ek86DIhC1_W4A1Mwtsj5mY3PtcIAzDWJC-V3gFs2QoO8gFg/exec';
 
 let currentUser = null;
 let scanMode = 'give';
@@ -478,15 +478,9 @@ async function api(action, data = {}) {
   showLoading('กำลังประมวลผล...');
   try {
     const res = await fetch(API_URL, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'text/plain;charset=utf-8',
-  },
-  body: JSON.stringify({
-    action,
-    ...data
-  })
-})
+      method: 'POST',
+      body: JSON.stringify({ action, ...data })
+    });
     const json = await res.json();
     hideLoading();
     return json;

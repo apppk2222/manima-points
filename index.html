@@ -6,7 +6,7 @@
 <title>☕ Coffee Points</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
-<style>
+<sty
 @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap');
 
 :root {
@@ -478,9 +478,15 @@ async function api(action, data = {}) {
   showLoading('กำลังประมวลผล...');
   try {
     const res = await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action, ...data })
-    });
+  method: 'POST',
+  headers: {
+    'Content-Type': 'text/plain;charset=utf-8',
+  },
+  body: JSON.stringify({
+    action,
+    ...data
+  })
+})
     const json = await res.json();
     hideLoading();
     return json;

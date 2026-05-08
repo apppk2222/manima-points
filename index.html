@@ -702,49 +702,142 @@ function stopScanner() {
 }
 
 async function handleQR(data) {
-  if (scanRaf)    { cancelAnimationFrame(scanRaf); scanRaf = null; }
-  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+
+  if (scanRaf) {
+    cancelAnimationFrame(scanRaf);
+    scanRaf = null;
+  }
+
+  if (scanStream) {
+    scanStream.getTracks().forEach(t => t.stop());
+    scanStream = null;
+  }
+
+  console.log("QR DATA:", data);
 
   const parts = data.split(':');
-  if (parts[0] !== 'CPLOYALTY') { showToast('QR ไม่ถูกต้อง'); goScreen('admin'); return; }
 
-  const type  = parts[1]; // EARN or REDEEM
+  if (parts[0] !== 'CPLOYALTY') {
+
+    showToast('QR ไม่ถูกต้อง');
+
+    setTimeout(() => {
+      goScreen('admin');
+    }, 800);
+
+    return;
+  }
+
+  const type  = parts[1];
   const phone = parts[2];
   const pts   = parseInt(parts[3]) || 0;
 
-  // ดึงข้อมูลลูกค้าจาก server
-  showLoading('กำลังดึงข้อมูลลูกค้า...');
   const r = await api('getCustomer', { phone });
-  hideLoading();
-  if (!r.ok) { showToast(r.error || 'ไม่พบลูกค้า'); goScreen('admin'); return; }
+
+  if (!r.ok) {
+
+    showToast(r.error || 'ไม่พบลูกค้า');
+
+    setTimeout(() => {
+      goScreen('admin');
+    }, 800);
+
+    return;
+  }
 
   const cust = r.customer;
 
+  // =========================
+  // GIVE POINTS
+  // =========================
   if (type === 'EARN' && scanMode === 'give') {
-    pendingScan = { phone, type:'earn' };
-    document.getElementById('modal-give-current').textContent = cust.points + ' แต้ม';
+
+    pendingScan = {
+      phone,
+      type:'earn'
+    };
+
+    document.getElementById('modal-give-current').textContent =
+      cust.points + ' แต้ม';
+
     document.getElementById('modal-give-info').innerHTML =
-      `<b style="color:var(--cream)">${cust.name}</b><br>${phone}`;
+      `<b style="color:var(--cream)">
+        ${cust.name}
+      </b><br>${phone}`;
+
     document.getElementById('give-pts-input').value = '';
-    document.getElementById('modal-give').classList.add('show');
+
     goScreen('admin');
 
-  } else if (type === 'REDEEM' && scanMode === 'deduct') {
-    pendingScan = { phone, pts, type:'redeem' };
-    const after = cust.points - pts;
-    document.getElementById('modal-deduct-info').innerHTML = `
-      <b style="color:var(--cream)">${cust.name}</b> (${phone})<br><br>
-      แต้มปัจจุบัน: <span style="color:var(--gold2);font-weight:700">${cust.points}</span><br>
-      หักแต้ม: <span style="color:var(--red);font-weight:700">-${pts}</span><br>
-      คงเหลือ: <span style="color:${after<0?'var(--red)':'var(--green)'};font-weight:700">
-        ${after<0?'ไม่เพียงพอ!':after}</span>
-    `;
-    document.getElementById('modal-deduct').classList.add('show');
-    goScreen('admin');
-  } else {
-    showToast('QR ประเภทไม่ตรงกับโหมดสแกน');
-    goScreen('admin');
+    setTimeout(() => {
+      document.getElementById('modal-give')
+        .classList.add('show');
+    }, 200);
+
   }
+
+  // =========================
+  // REDEEM
+  // =========================
+  else if (type === 'REDEEM' && scanMode === 'deduct') {
+
+    pendingScan = {
+      phone,
+      pts,
+      type:'redeem'
+    };
+
+    const after = cust.points - pts;
+
+    document.getElementById('modal-deduct-info').innerHTML = `
+      <b style="color:var(--cream)">
+        ${cust.name}
+      </b>
+      (${phone})
+      <br><br>
+
+      แต้มปัจจุบัน:
+      <span style="color:var(--gold2);font-weight:700">
+        ${cust.points}
+      </span>
+
+      <br>
+
+      หักแต้ม:
+      <span style="color:var(--red);font-weight:700">
+        -${pts}
+      </span>
+
+      <br>
+
+      คงเหลือ:
+      <span style="
+        color:${after < 0 ? 'red':'#27ae60'};
+        font-weight:700
+      ">
+        ${after < 0 ? 'แต้มไม่พอ' : after}
+      </span>
+    `;
+
+    goScreen('admin');
+
+    setTimeout(() => {
+      document.getElementById('modal-deduct')
+        .classList.add('show');
+    }, 200);
+
+  }
+
+  else {
+
+    showToast('QR ไม่ตรงกับโหมด');
+
+    setTimeout(() => {
+      goScreen('admin');
+    }, 1000);
+
+  }
+
 }
 
 async function confirmGivePoints() {

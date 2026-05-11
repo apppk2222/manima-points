@@ -2,8 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>☕ MANIMA Points</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"><title>☕ MANIMA Points</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <style>
@@ -20,7 +19,10 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 
 /* SCREENS */
 .screen{display:none;min-height:100vh;flex-direction:column;}
-.screen.active{display:flex;}
+.screen.active{
+  display:flex;
+  flex-direction:column;
+}
 
 /* TOPBAR */
 .topbar{background:var(--card);padding:14px 18px;display:flex;align-items:center;
@@ -221,6 +223,30 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
   border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .loading-text{color:var(--muted);font-size:.88rem;}
+
+/* FIX INPUT AND TOUCH */
+#screen-login input,
+#reg-name {
+    pointer-events: auto !important;
+    touch-action: auto !important;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -webkit-touch-callout: text !important;
+    position: relative !important;
+    z-index: 9999 !important;
+    font-size: 16px !important;           /* สำคัญมาก */
+    background: var(--bg) !important;
+    color: var(--text) !important;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* เฉพาะช่องชื่อ */
+#reg-name {
+    font-size: 16px !important;
+    padding: 13px 15px !important;
+    min-height: 52px !important;
+}
 </style>
 </head>
 <body>
@@ -250,12 +276,18 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
       <button class="btn-primary" onclick="doLogin()">เข้าสู่ระบบ</button>
     </div>
     <div id="tab-register" class="tab-panel">
-      <div class="form-group"><label>ชื่อผู้ใช้</label>
-        <input type="text" id="reg-name" placeholder="ชื่อผู้ใช้">
-      </div>
-      <div class="form-group"><label>เบอร์โทรศัพท์</label>
-        <input type="tel" id="reg-phone" placeholder="********" maxlength="10">
-      </div>
+  <div class="form-group">
+    <label>เบอร์โทรศัพท์</label>
+    <input type="tel" id="reg-phone" placeholder="โปรดกรอกเบอร์โทรศัพท์ของท่าน" maxlength="10">
+  </div>
+  <div class="form-group">
+    <label>ชื่อผู้ใช้</label>
+    <input type="text" id="reg-name" placeholder="ชื่อผู้ใช้" 
+           autocomplete="name" 
+           autocorrect="off" 
+           spellcheck="false"
+           inputmode="text">
+  </div>
       <button class="btn-primary" onclick="doRegister()">ลงทะเบียน</button>
     </div>
     <div class="admin-link"><a onclick="goScreen('admin-login')">🔐 เข้าสู่ระบบแอดมิน</a></div>
@@ -463,7 +495,7 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 // ══════════════════════════════
 // URL ของ Google Apps Script Web App ที่ Deploy แล้ว
 // เปลี่ยนเป็น URL จริงของคุณ
-const API_URL = 'https://script.google.com/macros/s/AKfycbwpFMo1LvzJ1w8X_G0MkYOHzvUtnRajFnWOSUNPN_SxaN4gmkPPsNff_TsnNKMTCf4E7w/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwej9xQhHyigpjwUQTiVDQP20OyJ9PsdBKz6ikbencwnwjwiZ63MFnX1gTD8PLUrlmPsw/exec';
 
 let currentUser = null;
 let scanMode = 'give';
@@ -916,6 +948,40 @@ function showToast(msg) {
   t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2800);
 }
+
+/* FIX MOBILE INPUT */
+document.addEventListener('DOMContentLoaded', () => {
+    const regNameInput = document.getElementById('reg-name');
+
+    if (regNameInput) {
+        // Force style
+        regNameInput.style.pointerEvents = 'auto';
+        regNameInput.style.touchAction = 'auto';
+        regNameInput.style.userSelect = 'text';
+        regNameInput.style.webkitUserSelect = 'text';
+        regNameInput.style.zIndex = '9999';
+
+        // Touch & Click
+        const forceFocus = () => {
+            regNameInput.focus();
+            setTimeout(() => regNameInput.focus(), 30);
+        };
+
+        regNameInput.addEventListener('touchstart', forceFocus, { passive: false });
+        regNameInput.addEventListener('click', forceFocus);
+        regNameInput.addEventListener('focusin', forceFocus);
+
+        // Double tap fix
+        let lastTouch = 0;
+        regNameInput.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTouch < 300) {
+                forceFocus();
+            }
+            lastTouch = now;
+        });
+    }
+});
 </script>
 </body>
 </html>

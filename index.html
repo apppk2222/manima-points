@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>☕ Coffee Points</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap');
 
@@ -659,10 +659,13 @@ async function refreshAdmin() {
 // ══════════════════════════════
 // SCANNER
 // ══════════════════════════════
+// ══════════════════════════════
+// SCANNER
+// ══════════════════════════════
 function openScanner(mode) {
   scanMode = mode;
-  document.getElementById('scanner-title').textContent = mode==='give'?'สแกนให้แต้ม':'สแกนแลกรางวัล';
-  document.getElementById('scan-mode-badge').textContent = mode==='give'?'🟢 จ่ายแต้ม':'🔴 หักแต้ม';
+  document.getElementById('scanner-title').textContent = mode === 'give' ? 'สแกนให้แต้ม' : 'สแกนแลกรางวัล';
+  document.getElementById('scan-mode-badge').textContent = mode === 'give' ? '🟢 จ่ายแต้ม' : '🔴 หักแต้ม';
   goScreen('scanner');
   startCamera();
 }
@@ -670,46 +673,57 @@ function openScanner(mode) {
 async function startCamera() {
   try {
     scanStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal:'environment' }, width:{ ideal:1280 }, height:{ ideal:720 } }
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      }
     });
     const v = document.getElementById('scanner-video');
     v.srcObject = scanStream;
-    v.onloadedmetadata = () => { v.play(); tickScan(); };
-  } catch(e) {
-    showToast('ไม่สามารถเปิดกล้องได้');
+    await v.play();
+    tickScan();
+  } catch (e) {
+    console.error('Camera error:', e);
+    showToast('ไม่สามารถเปิดกล้องได้: ' + e.message);
     goScreen('admin');
   }
 }
 
 function tickScan() {
-  const v   = document.getElementById('scanner-video');
-  const c   = document.getElementById('scanner-canvas');
-  const ctx = c.getContext('2d');
-  if (v.readyState === v.HAVE_ENOUGH_DATA) {
-    c.width = v.videoWidth; c.height = v.videoHeight;
-    ctx.drawImage(v, 0, 0);
-    const img  = ctx.getImageData(0, 0, c.width, c.height);
-    if (typeof jsQR === 'undefined') {
-  console.error('jsQR โหลดไม่สำเร็จ');
-  return;
-}
+  // หยุดถ้าออกจากหน้า scanner แล้ว
+  if (!document.getElementById('screen-scanner').classList.contains('active')) return;
 
-const code = jsQR(
-  img.data,
-  img.width,
-  img.height,
-  {
-    inversionAttempts:'dontInvert'
+  const v = document.getElementById('scanner-video');
+  const c = document.getElementById('scanner-canvas');
+
+  if (typeof jsQR === 'undefined') {
+    console.error('jsQR ยังโหลดไม่เสร็จ');
+    scanRaf = requestAnimationFrame(tickScan);
+    return;
   }
-);
-    if (code) { handleQR(code.data); return; }
+
+  if (v.readyState >= v.HAVE_ENOUGH_DATA && v.videoWidth > 0) {
+    c.width = v.videoWidth;
+    c.height = v.videoHeight;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(v, 0, 0, c.width, c.height);
+    const imageData = ctx.getImageData(0, 0, c.width, c.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'dontInvert'
+    });
+    if (code && code.data) {
+      handleQR(code.data);
+      return; // หยุด loop — handleQR จะจัดการต่อ
+    }
   }
+
   scanRaf = requestAnimationFrame(tickScan);
 }
 
 function stopScanner() {
+  if (scanRaf) { cancelAnimationFrame(scanRaf); scanRaf = null; }
   if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
-  if (scanRaf)    { cancelAnimationFrame(scanRaf); scanRaf = null; }
   goScreen('admin');
 }
 

@@ -498,6 +498,83 @@ body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-h
 const API_URL = 'https://script.google.com/macros/s/AKfycbwej9xQhHyigpjwUQTiVDQP20OyJ9PsdBKz6ikbencwnwjwiZ63MFnX1gTD8PLUrlmPsw/exec';
 
 let currentUser = null;
+// ══════════════════════════════
+// SESSION
+// ══════════════════════════════
+function saveSession() {
+  localStorage.setItem('coffee_points_user', JSON.stringify(currentUser));
+}
+
+async function loadSession() {
+
+  const data = localStorage.getItem('coffee_points_user');
+
+  if (!data) return false;
+
+  try {
+
+    currentUser = JSON.parse(data);
+
+    // ═════════ ADMIN ═════════
+    if (currentUser.isAdmin) {
+
+      await refreshAdmin();
+
+      goScreen('admin');
+
+      return true;
+    }
+
+    // ═════════ CUSTOMER ═════════
+    const r = await api('getCustomer', {
+      phone: currentUser.phone
+    });
+
+    // ถ้าหาลูกค้าไม่เจอ → logout
+    if (!r.ok) {
+
+      clearSession();
+
+      currentUser = null;
+
+      goScreen('login');
+
+      return false;
+    }
+
+    // อัพเดทข้อมูลล่าสุด
+    currentUser = r.customer;
+
+    // บันทึก session ใหม่
+    saveSession();
+
+    // โหลดหน้าใหม่
+   await renderCustomerHome(false);
+
+// โหลดประวัติทีหลัง เพื่อให้หน้าแสดงเร็ว
+setTimeout(() => {
+  loadHistory();
+}, 50);
+
+goScreen('customer');
+
+return true;
+
+  } catch (e) {
+
+    console.error(e);
+
+    clearSession();
+
+    currentUser = null;
+
+    return false;
+  }
+}
+
+function clearSession() {
+  localStorage.removeItem('coffee_points_user');
+}
 let scanMode = 'give';
 let scanStream = null;
 let scanRaf = null;
@@ -507,18 +584,43 @@ let pendingScan = null;
 // API CALL
 // ══════════════════════════════
 async function api(action, data = {}) {
-  showLoading('กำลังประมวลผล...');
+
+  let loadingTimer;
+
   try {
+
+    // รอ 250ms ก่อนค่อยโชว์ loading
+    loadingTimer = setTimeout(() => {
+      showLoading('กำลังประมวลผล...');
+    }, 250);
+
     const res = await fetch(API_URL, {
       method: 'POST',
-      body: JSON.stringify({ action, ...data })
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify({
+        action,
+        ...data
+      })
     });
-    const json = await res.json();
+
+    clearTimeout(loadingTimer);
+
     hideLoading();
-    return json;
+
+    return await res.json();
+
   } catch (e) {
+
+    clearTimeout(loadingTimer);
+
     hideLoading();
-    return { ok: false, error: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้' };
+
+    return {
+      ok:false,
+      error:'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'
+    };
   }
 }
 
@@ -547,8 +649,10 @@ async function doLogin() {
   const r = await api('login', { phone });
   if (!r.ok) return showToast(r.error);
   currentUser = r.customer;
-  renderCustomerHome();
-  goScreen('customer');
+saveSession();
+
+renderCustomerHome();
+goScreen('customer');
 }
 
 async function doRegister() {
@@ -559,7 +663,9 @@ async function doRegister() {
   const r = await api('register', { name, phone });
   if (!r.ok) return showToast(r.error);
   currentUser = r.customer;
-  showToast('ลงทะเบียนสำเร็จ! ยินดีต้อนรับ ☕');
+saveSession();
+
+showToast('ลงทะเบียนสำเร็จ! ยินดีต้อนรับ ☕');
   setTimeout(() => { renderCustomerHome(); goScreen('customer'); }, 600);
 }
 
@@ -570,23 +676,50 @@ async function doAdminLogin() {
   if (!r.ok) return showToast(r.error || 'รหัสผ่านไม่ถูกต้อง');
   document.getElementById('admin-pass').value = '';
   currentUser = { isAdmin: true };
-  refreshAdmin();
-  goScreen('admin');
+saveSession();
+
+refreshAdmin();
+goScreen('admin');
 }
 
 function doLogout() {
+
+  // ปิดกล้องถ้ายังเปิดอยู่
+  if (scanRaf) {
+    cancelAnimationFrame(scanRaf);
+    scanRaf = null;
+  }
+
+  if (scanStream) {
+    scanStream.getTracks().forEach(t => t.stop());
+    scanStream = null;
+  }
+
   currentUser = null;
+
+  clearSession();
+
   goScreen('login');
 }
 
 // ══════════════════════════════
 // CUSTOMER
 // ══════════════════════════════
-async function renderCustomerHome() {
-  document.getElementById('cust-name-display').textContent  = currentUser.name;
-  document.getElementById('cust-phone-display').textContent = currentUser.phone;
-  document.getElementById('cust-pts-display').textContent   = currentUser.points;
-  loadHistory();
+async function renderCustomerHome(loadHist = true) {
+
+  document.getElementById('cust-name-display').textContent =
+    currentUser.name;
+
+  document.getElementById('cust-phone-display').textContent =
+    currentUser.phone;
+
+  document.getElementById('cust-pts-display').textContent =
+    currentUser.points;
+
+  // โหลด history เฉพาะจำเป็น
+  if (loadHist) {
+    loadHistory();
+  }
 }
 
 async function refreshCustomer() {
@@ -946,7 +1079,7 @@ function hideLoading() { document.getElementById('loading').classList.remove('sh
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2800);
+  setTimeout(() => t.classList.remove('show'), 1200);
 }
 
 /* FIX MOBILE INPUT */
@@ -981,6 +1114,20 @@ document.addEventListener('DOMContentLoaded', () => {
             lastTouch = now;
         });
     }
+});
+
+// ══════════════════════════════
+// AUTO RESTORE LOGIN
+// ══════════════════════════════
+window.addEventListener('load', async () => {
+
+  const restored = await loadSession();
+
+  // ไม่มี session
+  if (!restored) {
+    goScreen('login');
+  }
+
 });
 </script>
 </body>
